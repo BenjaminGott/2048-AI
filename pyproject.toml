@@ -14,6 +14,13 @@ target-version = "py310"
 #   B     -> pièges courants (flake8-bugbear)
 select = ["E", "W", "F", "I", "UP", "B"]
 
+[tool.ruff.lint.isort]
+# On déclare explicitement nos modules internes comme "first-party".
+# Sans cela, la détection automatique de Ruff peut différer entre la machine
+# locale et la CI (où ils seraient classés comme "third-party"), provoquant
+# des erreurs I001 de tri d'imports uniquement en CI.
+known-first-party = ["game", "env", "agents", "play"]
+
 [tool.pytest.ini_options]
 # Les tests se trouvent dans le dossier tests/.
 testpaths = ["tests"]
