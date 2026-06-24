@@ -9,10 +9,11 @@ __pycache__/
 *.so
 
 # Environnements virtuels
+# NB : on n'ignore PAS `env/` car c'est le package de l'environnement Gymnasium
+# du projet (env/game2048_env.py). On cible donc des noms de venv explicites.
 .venv/
 venv/
-env/
-ENV/
+.env/
 
 # Packaging / distribution
 build/
