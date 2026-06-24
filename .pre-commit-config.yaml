@@ -1,0 +1,26 @@
+# Hooks exécutés automatiquement avant chaque commit (framework pre-commit).
+# Installation (une seule fois) :
+#     pip install -r requirements-dev.txt
+#     pre-commit install
+# Lancer manuellement sur tout le projet :
+#     pre-commit run --all-files
+
+repos:
+  # Ruff : linting (avec correction automatique) + formatage.
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.19
+    hooks:
+      # Lint : corrige ce qui peut l'être automatiquement.
+      - id: ruff
+        args: [--fix]
+      # Formatage du code (équivalent de `ruff format`).
+      - id: ruff-format
+
+  # Petites vérifications génériques utiles.
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace      # supprime les espaces en fin de ligne
+      - id: end-of-file-fixer        # garantit une ligne vide finale
+      - id: check-yaml               # valide la syntaxe des fichiers YAML
+      - id: check-added-large-files  # bloque l'ajout de gros fichiers par erreur
