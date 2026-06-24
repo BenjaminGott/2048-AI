@@ -4,6 +4,5 @@
 pytest>=7.4
 ruff==0.15.19  # version épinglée pour un résultat identique local/CI/pre-commit
 pre-commit>=3.5
-# stable-baselines3 sera utilisé à l'étape suivante (entraînement PPO/DQN) ;
-# on l'inclut dès maintenant pour vérifier qu'il s'installe correctement.
-stable-baselines3>=2.0
+# stable-baselines3 et torch sont désormais des dépendances runtime
+# (voir requirements.txt) : inutile de les répéter ici.
