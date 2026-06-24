@@ -2,5 +2,8 @@
 # Installation : pip install -r requirements-dev.txt
 -r requirements.txt
 pytest>=7.4
-ruff>=0.6
+ruff==0.15.19  # version épinglée pour un résultat identique local/CI/pre-commit
 pre-commit>=3.5
+# stable-baselines3 sera utilisé à l'étape suivante (entraînement PPO/DQN) ;
+# on l'inclut dès maintenant pour vérifier qu'il s'installe correctement.
+stable-baselines3>=2.0
