@@ -1,0 +1,47 @@
+# --- Fichiers spécifiques au projet / outils locaux ---
+CLAUDE.MD
+.claude
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Environnements virtuels
+.venv/
+venv/
+env/
+ENV/
+
+# Packaging / distribution
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# --- Tests & couverture ---
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.mypy_cache/
+.ruff_cache/
+
+# --- Reinforcement Learning (artefacts d'entraînement) ---
+# Modèles entraînés, logs et checkpoints : volumineux, on ne versionne pas.
+models/
+*.zip
+*.pt
+*.pth
+logs/
+tensorboard/
+runs/
+
+# --- Éditeurs / OS ---
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
