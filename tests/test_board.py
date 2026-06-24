@@ -17,7 +17,7 @@ import numpy as np
 # fonctionne aussi bien via pytest que via `python tests/test_board.py`.
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from game.board import Board, UP, DOWN, LEFT, RIGHT
+from game.board import DOWN, LEFT, RIGHT, UP, Board
 
 
 def _make_board(grid: list[list[int]]) -> Board:
@@ -34,12 +34,14 @@ def _make_board(grid: list[list[int]]) -> Board:
 
 def test_slide_left_merges_pair() -> None:
     """Un mouvement gauche sur [2,2,0,0] doit donner [4,0,0,0]."""
-    board = _make_board([
-        [2, 2, 0, 0],
-        [0, 0, 0, 0],
-        [0, 0, 0, 0],
-        [0, 0, 0, 0],
-    ])
+    board = _make_board(
+        [
+            [2, 2, 0, 0],
+            [0, 0, 0, 0],
+            [0, 0, 0, 0],
+            [0, 0, 0, 0],
+        ]
+    )
     gained, changed = board.move(LEFT)
 
     assert changed is True
@@ -52,12 +54,14 @@ def test_slide_left_merges_pair() -> None:
 
 def test_slide_left_no_triple_merge() -> None:
     """[2,2,2,0] vers la gauche fusionne UNE seule paire -> [4,2,0,0]."""
-    board = _make_board([
-        [2, 2, 2, 0],
-        [0, 0, 0, 0],
-        [0, 0, 0, 0],
-        [0, 0, 0, 0],
-    ])
+    board = _make_board(
+        [
+            [2, 2, 2, 0],
+            [0, 0, 0, 0],
+            [0, 0, 0, 0],
+            [0, 0, 0, 0],
+        ]
+    )
     gained, changed = board.move(LEFT)
 
     assert changed is True
@@ -70,12 +74,14 @@ def test_invalid_move_does_not_change_grid() -> None:
     """Un mouvement invalide laisse la grille inchangée et ne gagne rien."""
     # Toutes les tuiles sont déjà collées à gauche et non fusionnables :
     # un mouvement vers la gauche ne change donc rien.
-    board = _make_board([
-        [2, 4, 0, 0],
-        [4, 2, 0, 0],
-        [2, 4, 0, 0],
-        [4, 2, 0, 0],
-    ])
+    board = _make_board(
+        [
+            [2, 4, 0, 0],
+            [4, 2, 0, 0],
+            [2, 4, 0, 0],
+            [4, 2, 0, 0],
+        ]
+    )
     before = board.grid.copy()
     gained, changed = board.move(LEFT)
 
@@ -87,24 +93,28 @@ def test_invalid_move_does_not_change_grid() -> None:
 def test_game_over_detection() -> None:
     """Une grille pleine sans fusion possible doit être détectée comme finie."""
     # Damier de valeurs alternées : aucune paire adjacente identique.
-    board = _make_board([
-        [2, 4, 2, 4],
-        [4, 2, 4, 2],
-        [2, 4, 2, 4],
-        [4, 2, 4, 2],
-    ])
+    board = _make_board(
+        [
+            [2, 4, 2, 4],
+            [4, 2, 4, 2],
+            [2, 4, 2, 4],
+            [4, 2, 4, 2],
+        ]
+    )
     assert board.is_game_over() is True
     assert board.get_valid_moves() == []
 
 
 def test_game_not_over_when_move_exists() -> None:
     """Une grille avec une paire fusionnable n'est pas terminée."""
-    board = _make_board([
-        [2, 2, 4, 8],
-        [4, 8, 16, 32],
-        [2, 4, 8, 16],
-        [4, 8, 16, 32],
-    ])
+    board = _make_board(
+        [
+            [2, 2, 4, 8],
+            [4, 8, 16, 32],
+            [2, 4, 8, 16],
+            [4, 8, 16, 32],
+        ]
+    )
     assert board.is_game_over() is False
     # Au moins le mouvement gauche/droite (fusion des deux 2) est valide.
     assert len(board.get_valid_moves()) > 0
@@ -112,12 +122,14 @@ def test_game_not_over_when_move_exists() -> None:
 
 def test_move_up_stacks_column() -> None:
     """Un mouvement haut empile et fusionne une colonne correctement."""
-    board = _make_board([
-        [2, 0, 0, 0],
-        [2, 0, 0, 0],
-        [4, 0, 0, 0],
-        [0, 0, 0, 0],
-    ])
+    board = _make_board(
+        [
+            [2, 0, 0, 0],
+            [2, 0, 0, 0],
+            [4, 0, 0, 0],
+            [0, 0, 0, 0],
+        ]
+    )
     gained, changed = board.move(UP)
 
     assert changed is True
@@ -129,12 +141,14 @@ def test_move_up_stacks_column() -> None:
 
 def test_move_down_stacks_column() -> None:
     """Un mouvement bas empile les tuiles vers le bas."""
-    board = _make_board([
-        [2, 0, 0, 0],
-        [2, 0, 0, 0],
-        [0, 0, 0, 0],
-        [0, 0, 0, 0],
-    ])
+    board = _make_board(
+        [
+            [2, 0, 0, 0],
+            [2, 0, 0, 0],
+            [0, 0, 0, 0],
+            [0, 0, 0, 0],
+        ]
+    )
     gained, changed = board.move(DOWN)
 
     assert changed is True
@@ -145,12 +159,14 @@ def test_move_down_stacks_column() -> None:
 
 def test_move_right_merges_pair() -> None:
     """[0,0,2,2] vers la droite donne [0,0,0,4]."""
-    board = _make_board([
-        [0, 0, 2, 2],
-        [0, 0, 0, 0],
-        [0, 0, 0, 0],
-        [0, 0, 0, 0],
-    ])
+    board = _make_board(
+        [
+            [0, 0, 2, 2],
+            [0, 0, 0, 0],
+            [0, 0, 0, 0],
+            [0, 0, 0, 0],
+        ]
+    )
     gained, changed = board.move(RIGHT)
 
     assert changed is True
@@ -185,8 +201,9 @@ if __name__ == "__main__":
     # Exécution directe sans pytest : on lance chaque test et on affiche le bilan.
     import sys
 
-    tests = [obj for name, obj in sorted(globals().items())
-             if name.startswith("test_") and callable(obj)]
+    tests = [
+        obj for name, obj in sorted(globals().items()) if name.startswith("test_") and callable(obj)
+    ]
     failures = 0
     for test in tests:
         try:
