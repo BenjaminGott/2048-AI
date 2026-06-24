@@ -137,6 +137,27 @@ class Game2048Env(gym.Env):
         info = self._get_info(action_valid=True)
         return observation, float(reward), terminated, truncated, info
 
+    # --- Action masking ----------------------------------------------------
+
+    def action_masks(self) -> np.ndarray:
+        """Renvoie le masque des actions valides (pour MaskablePPO).
+
+        Une action est « valide » si elle modifie la grille. Masquer les coups
+        invalides évite à l'agent de les choisir : il n'apprend que sur des
+        coups légaux, ce qui accélère et stabilise fortement l'apprentissage.
+
+        Returns:
+            np.ndarray: tableau booléen de forme (4,) — True = action autorisée.
+                Si aucune action n'est valide (partie finie), tout est True pour
+                éviter un masque entièrement faux (cas dégénéré non bloquant).
+        """
+        valid = self.board.get_valid_moves()
+        mask = np.zeros(N_ACTIONS, dtype=bool)
+        if not valid:
+            return np.ones(N_ACTIONS, dtype=bool)
+        mask[valid] = True
+        return mask
+
     # --- Utilitaires internes ----------------------------------------------
 
     def _get_observation(self) -> np.ndarray:

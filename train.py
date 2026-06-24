@@ -21,6 +21,7 @@ from typing import Any
 
 from stable_baselines3.common.callbacks import BaseCallback
 
+from agents.maskable_ppo_agent import MaskablePPOAgent
 from agents.ppo_agent import BASELINE_STATS, PPOAgent
 from env.game2048_env import Game2048Env
 
@@ -47,22 +48,24 @@ class ProgressCallback(BaseCallback):
         self.print_every = print_every
         self._start = time.time()
         self._next_threshold = print_every
-        self._done_this_version = 0
+        self._start_ts = 0
 
     def _on_training_start(self) -> None:
         self._start = time.time()
-        self._done_this_version = 0
+        # On mesure les pas via le compteur du modèle : robuste avec des
+        # environnements vectorisés (où chaque _on_step vaut n_envs pas).
+        self._start_ts = self.model.num_timesteps
         self._next_threshold = self.print_every
 
     def _on_step(self) -> bool:
-        self._done_this_version += 1
-        if self._done_this_version >= self._next_threshold:
+        done = self.model.num_timesteps - self._start_ts
+        if done >= self._next_threshold:
             self._next_threshold += self.print_every
             self._print_progress()
         return True
 
     def _print_progress(self) -> None:
-        done = min(self._done_this_version, self.total)
+        done = min(self.model.num_timesteps - self._start_ts, self.total)
         pct = 100.0 * done / max(1, self.total)
         elapsed = time.time() - self._start
         fps = done / elapsed if elapsed > 0 else 0.0
@@ -112,7 +115,11 @@ def load_progress(model_dir: str) -> dict[str, Any]:
 
 
 def update_progress(
-    model_dir: str, version: str, timesteps_total: int, eval_stats: dict[str, float]
+    model_dir: str,
+    version: str,
+    timesteps_total: int,
+    eval_stats: dict[str, float],
+    algo: str = "PPO",
 ) -> dict[str, Any]:
     """Ajoute (ou remplace) l'entrée d'une version dans `progress.json`.
 
@@ -121,12 +128,18 @@ def update_progress(
         version (str): version concernée (ex: "v2").
         timesteps_total (int): total cumulé de pas d'entraînement.
         eval_stats (dict): résultats d'évaluation de la version.
+        algo (str): algorithme utilisé (ex: "PPO", "MaskablePPO").
 
     Returns:
         dict: la progression mise à jour.
     """
     progress = load_progress(model_dir)
-    entry = {"version": version, "timesteps_total": int(timesteps_total), **eval_stats}
+    entry = {
+        "version": version,
+        "algo": algo,
+        "timesteps_total": int(timesteps_total),
+        **eval_stats,
+    }
     # On retire une éventuelle entrée du même nom puis on ré-ajoute, et on trie.
     others = [v for v in progress["versions"] if v["version"] != version]
     progress["versions"] = sorted(others + [entry], key=lambda v: int(v["version"][1:]))
@@ -168,10 +181,25 @@ def main() -> None:
     parser.add_argument("--eval-episodes", type=int, default=50, help="parties d'évaluation")
     parser.add_argument("--resume", action="store_true", help="reprend depuis la dernière version")
     parser.add_argument("--model-dir", default="models", help="dossier des modèles")
+    parser.add_argument(
+        "--no-mask",
+        action="store_true",
+        help="utilise le PPO simple (sans masquage) au lieu de MaskablePPO",
+    )
+    parser.add_argument(
+        "--n-envs", type=int, default=8, help="environnements parallèles (MaskablePPO)"
+    )
     args = parser.parse_args()
 
-    env = Game2048Env()
-    agent = PPOAgent(env, model_dir=args.model_dir)
+    # Par défaut : MaskablePPO (masquage + vec-envs + meilleur modèle gardé).
+    # --no-mask rebascule sur le PPO simple, utile comme point de comparaison.
+    if args.no_mask:
+        agent: PPOAgent | MaskablePPOAgent = PPOAgent(Game2048Env(), model_dir=args.model_dir)
+        algo = "PPO"
+    else:
+        agent = MaskablePPOAgent(Game2048Env(), model_dir=args.model_dir, n_envs=args.n_envs)
+        algo = MaskablePPOAgent.algo_name
+    print(f"Algorithme : {algo}")
 
     start_number = 1
     if args.resume:
@@ -198,7 +226,7 @@ def main() -> None:
             json.dump(stats, f, indent=2)
 
         timesteps_total = int(agent.model.num_timesteps)
-        update_progress(args.model_dir, version, timesteps_total, stats)
+        update_progress(args.model_dir, version, timesteps_total, stats, algo=algo)
         print_version_summary(version, timesteps_total, stats, model_path)
 
     print("\nEntraînement terminé. Compare les versions avec : python evaluate.py")

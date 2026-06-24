@@ -15,8 +15,7 @@ from __future__ import annotations
 import argparse
 import os
 
-from agents.ppo_agent import PPOAgent
-from env.game2048_env import Game2048Env
+from agents.loader import make_agent_for
 from train import load_progress
 
 
@@ -131,8 +130,7 @@ def reevaluate_version(version: str, model_dir: str, n_episodes: int) -> None:
         print(f"Version introuvable : {model_path}")
         return
 
-    env = Game2048Env()
-    agent = PPOAgent(env, model_dir=model_dir)
+    agent = make_agent_for(version, model_dir)
     agent.load(version)
     print(f"Ré-évaluation de {version} sur {n_episodes} parties…")
     stats = agent.evaluate(n_episodes=n_episodes)

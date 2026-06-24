@@ -104,3 +104,20 @@ def test_passes_gymnasium_env_checker() -> None:
     env = Game2048Env()
     # check_env lève une exception si l'API n'est pas respectée.
     check_env(env, skip_render_check=True)
+
+
+def test_action_masks_matches_valid_moves() -> None:
+    """action_masks() reflète exactement les coups valides de la grille."""
+    env = Game2048Env()
+    env.reset(seed=0)
+    # Seul "gauche" (2) change cette grille -> seul cet index doit être True.
+    env.board.grid = np.array(
+        [[2, 0, 0, 0], [4, 0, 0, 0], [8, 0, 0, 0], [16, 0, 0, 0]],
+        dtype=np.int32,
+    )
+    mask = env.action_masks()
+
+    assert mask.shape == (4,)
+    assert mask.dtype == bool
+    valid = env.board.get_valid_moves()
+    assert [bool(mask[a]) for a in range(4)] == [a in valid for a in range(4)]
