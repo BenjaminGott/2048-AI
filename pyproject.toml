@@ -1,0 +1,19 @@
+# Configuration des outils de développement du projet.
+
+[tool.ruff]
+# Ruff sert à la fois de formateur (comme Black) et de linter.
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+# Règles activées :
+#   E, W  -> erreurs/avertissements de style (pycodestyle)
+#   F     -> erreurs logiques (pyflakes : imports inutilisés, variables non définies…)
+#   I     -> tri des imports (isort)
+#   UP    -> modernisation de la syntaxe (pyupgrade)
+#   B     -> pièges courants (flake8-bugbear)
+select = ["E", "W", "F", "I", "UP", "B"]
+
+[tool.pytest.ini_options]
+# Les tests se trouvent dans le dossier tests/.
+testpaths = ["tests"]

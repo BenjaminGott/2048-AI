@@ -17,9 +17,10 @@ from __future__ import annotations
 
 import sys
 
-from colorama import Style, init as colorama_init
+from colorama import Style
+from colorama import init as colorama_init
 
-from game.board import Board, UP, DOWN, LEFT, RIGHT
+from game.board import DOWN, LEFT, RIGHT, UP, Board
 
 # --- Couleurs des tuiles (codes ANSI 256 couleurs) -------------------------
 # On associe chaque valeur de tuile à une couleur de fond + une couleur de
@@ -30,18 +31,18 @@ CELL_WIDTH = 6  # largeur intérieure d'une case, ex: "  2048"
 
 # (couleur de fond, couleur de texte) en codes ANSI 256.
 TILE_COLORS: dict[int, tuple[int, int]] = {
-    0: (236, 244),     # case vide : gris foncé
-    2: (255, 236),     # blanc cassé, texte foncé
-    4: (223, 236),     # beige
-    8: (215, 235),     # orange clair
-    16: (208, 231),    # orange
-    32: (202, 231),    # orange-rouge
-    64: (196, 231),    # rouge
-    128: (227, 236),   # jaune clair
-    256: (220, 236),   # jaune
-    512: (214, 236),   # jaune-or
-    1024: (190, 16),   # vert-jaune
-    2048: (46, 16),    # vert vif
+    0: (236, 244),  # case vide : gris foncé
+    2: (255, 236),  # blanc cassé, texte foncé
+    4: (223, 236),  # beige
+    8: (215, 235),  # orange clair
+    16: (208, 231),  # orange
+    32: (202, 231),  # orange-rouge
+    64: (196, 231),  # rouge
+    128: (227, 236),  # jaune clair
+    256: (220, 236),  # jaune
+    512: (214, 236),  # jaune-or
+    1024: (190, 16),  # vert-jaune
+    2048: (46, 16),  # vert vif
 }
 _MAX_COLOR_KEY = 2048
 
@@ -92,6 +93,7 @@ def _clear_screen() -> None:
 # On lit une touche sans attendre "Entrée". L'implémentation diffère entre
 # Windows (msvcrt) et les systèmes Unix (termios/tty).
 
+
 def _read_key() -> str:
     """Lit une touche et retourne une commande normalisée.
 
@@ -141,9 +143,11 @@ def _interpret_char(ch: str) -> str:
     """
     ch = ch.lower()
     mapping = {
-        "z": "up", "w": "up",
+        "z": "up",
+        "w": "up",
         "s": "down",
-        "q": "quit", "a": "left",   # 'q' = quitter ; 'a' = gauche (clavier QWERTY)
+        "q": "quit",
+        "a": "left",  # 'q' = quitter ; 'a' = gauche (clavier QWERTY)
         "d": "right",
         "r": "restart",
         "\x1b": "quit",  # Échap
