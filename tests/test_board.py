@@ -46,10 +46,13 @@ def test_slide_left_merges_pair() -> None:
 
     assert changed is True
     assert gained == 4
-    # La première ligne doit commencer par [4, 0, 0, ...]. Une nouvelle tuile
-    # a pu apparaître ailleurs, on ne teste donc que la fusion attendue.
+    # La fusion 2+2 a bien produit un 4 collé à gauche.
     assert board.grid[0, 0] == 4
-    assert board.grid[0, 1] == 0
+    # Après un coup valide, exactement une nouvelle tuile apparaît : la grille
+    # contient donc le 4 fusionné + 1 nouvelle tuile (qui peut tomber n'importe
+    # où, y compris en [0, 1] -> on ne teste donc pas une case précise vide).
+    non_zero = board.grid[board.grid != 0]
+    assert non_zero.size == 2
 
 
 def test_slide_left_no_triple_merge() -> None:
@@ -171,8 +174,11 @@ def test_move_right_merges_pair() -> None:
 
     assert changed is True
     assert gained == 4
+    # La fusion s'est faite à droite ; une nouvelle tuile apparaît ailleurs
+    # (potentiellement en [0, 2]), donc on vérifie le total plutôt qu'une case.
     assert board.grid[0, 3] == 4
-    assert board.grid[0, 2] == 0
+    non_zero = board.grid[board.grid != 0]
+    assert non_zero.size == 2
 
 
 def test_reset_returns_grid_with_two_tiles() -> None:

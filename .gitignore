@@ -29,6 +29,11 @@ htmlcov/
 .mypy_cache/
 .ruff_cache/
 
+# --- Parties enregistrées (relecture) ---
+# Générées à l'exécution (scripts/watch_games.py --record) ; on ne les versionne
+# pas par défaut. Pour conserver une partie précise, ajoute-la avec `git add -f`.
+recordings/
+
 # --- Reinforcement Learning (artefacts d'entraînement) ---
 # Modèles entraînés, logs et checkpoints : volumineux, on ne versionne pas.
 models/

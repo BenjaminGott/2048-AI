@@ -15,51 +15,16 @@ Lancement :
 
 from __future__ import annotations
 
+import os
 import sys
 
-from colorama import Style
 from colorama import init as colorama_init
 
 from game.board import DOWN, LEFT, RIGHT, UP, Board
+from game.render_text import board_block
+from game.replay import GameRecorder
 
-# --- Couleurs des tuiles (codes ANSI 256 couleurs) -------------------------
-# On associe chaque valeur de tuile à une couleur de fond + une couleur de
-# texte pour la lisibilité. Au-delà de 2048, on réutilise la dernière couleur.
-
-_RESET = Style.RESET_ALL
 CELL_WIDTH = 6  # largeur intérieure d'une case, ex: "  2048"
-
-# (couleur de fond, couleur de texte) en codes ANSI 256.
-TILE_COLORS: dict[int, tuple[int, int]] = {
-    0: (236, 244),  # case vide : gris foncé
-    2: (255, 236),  # blanc cassé, texte foncé
-    4: (223, 236),  # beige
-    8: (215, 235),  # orange clair
-    16: (208, 231),  # orange
-    32: (202, 231),  # orange-rouge
-    64: (196, 231),  # rouge
-    128: (227, 236),  # jaune clair
-    256: (220, 236),  # jaune
-    512: (214, 236),  # jaune-or
-    1024: (190, 16),  # vert-jaune
-    2048: (46, 16),  # vert vif
-}
-_MAX_COLOR_KEY = 2048
-
-
-def _ansi_cell(value: int) -> str:
-    """Retourne la représentation colorée d'une case (largeur fixe).
-
-    Args:
-        value (int): valeur de la tuile (0 = case vide).
-
-    Returns:
-        str: chaîne de longueur CELL_WIDTH, colorée via codes ANSI.
-    """
-    bg, fg = TILE_COLORS.get(min(value, _MAX_COLOR_KEY), TILE_COLORS[_MAX_COLOR_KEY])
-    text = "" if value == 0 else str(value)
-    content = text.rjust(CELL_WIDTH)
-    return f"\x1b[48;5;{bg}m\x1b[38;5;{fg}m{content}{_RESET}"
 
 
 def render(board: Board) -> None:
@@ -68,17 +33,7 @@ def render(board: Board) -> None:
     Args:
         board (Board): partie à afficher.
     """
-    size = board.grid.shape[0]
-    top = "┌" + "┬".join(["─" * CELL_WIDTH] * size) + "┐"
-    mid = "├" + "┼".join(["─" * CELL_WIDTH] * size) + "┤"
-    bot = "└" + "┴".join(["─" * CELL_WIDTH] * size) + "┘"
-
-    lines: list[str] = [top]
-    for r in range(size):
-        cells = "│".join(_ansi_cell(int(v)) for v in board.grid[r])
-        lines.append("│" + cells + "│")
-        lines.append(mid if r < size - 1 else bot)
-
+    lines = board_block(board.grid, cell_width=CELL_WIDTH)
     print("\n".join(lines))
     print(f"Score: {board.score}  |  Meilleure tuile: {board.get_max_tile()}")
     print("Flèches / ZQSD pour jouer  —  R: rejouer  —  Q: quitter")
@@ -160,6 +115,35 @@ def _interpret_char(ch: str) -> str:
 _COMMAND_TO_DIRECTION = {"up": UP, "down": DOWN, "left": LEFT, "right": RIGHT}
 
 
+def _new_recorder(board: Board) -> GameRecorder:
+    """Crée un enregistreur et capture l'état initial de la partie."""
+    recorder = GameRecorder()
+    recorder.capture(board.grid, board.score, action=None)
+    return recorder
+
+
+def _prompt_save(recorder: GameRecorder) -> None:
+    """Propose de sauvegarder la partie courante (si elle a au moins un coup).
+
+    Args:
+        recorder (GameRecorder): enregistreur de la partie terminée/quittée.
+    """
+    # Pas de terminal interactif (ex: test, pipe) ou partie vide -> on ne demande rien.
+    if not sys.stdin.isatty() or len(recorder.frames) <= 1:
+        return
+    try:
+        answer = input("\nSauvegarder cette partie ? (o/N) : ").strip().lower()
+    except EOFError:  # entrée indisponible
+        return
+    if answer in ("o", "oui", "y", "yes"):
+        path = recorder.save(
+            directory=os.path.join("recordings", "play"),
+            extra_metadata={"agent": "human"},
+        )
+        print(f"Partie enregistrée : {path}")
+        print(f"Pour la rejouer : python scripts/replay_game.py {path}")
+
+
 def play() -> None:
     """Boucle de jeu principale : affiche, lit les touches, applique les coups."""
     colorama_init()  # active l'interprétation des codes ANSI sous Windows
@@ -168,6 +152,7 @@ def play() -> None:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")  # type: ignore[union-attr]
     board = Board()
+    recorder = _new_recorder(board)  # enregistre la partie pour pouvoir la sauver
 
     while True:
         _clear_screen()
@@ -175,12 +160,14 @@ def play() -> None:
 
         if board.is_game_over():
             print(f"\n*** GAME OVER ***  Score final : {board.score}")
+            _prompt_save(recorder)
             print("R: rejouer  —  Q: quitter")
             cmd = _read_key()
             while cmd not in ("restart", "quit"):
                 cmd = _read_key()
             if cmd == "restart":
                 board.reset()
+                recorder = _new_recorder(board)
                 continue
             break
 
@@ -189,10 +176,17 @@ def play() -> None:
             break
         if cmd == "restart":
             board.reset()
+            recorder = _new_recorder(board)
             continue
         if cmd in _COMMAND_TO_DIRECTION:
-            board.move(_COMMAND_TO_DIRECTION[cmd])
+            _gained, changed = board.move(_COMMAND_TO_DIRECTION[cmd])
+            if changed:  # on n'enregistre que les coups qui modifient la grille
+                recorder.capture(board.grid, board.score, action=_COMMAND_TO_DIRECTION[cmd])
         # Toute autre touche est ignorée : la boucle ré-affiche simplement.
+
+    # Sortie en cours de partie (Q) : on propose aussi de sauvegarder.
+    if not board.is_game_over():
+        _prompt_save(recorder)
 
     _clear_screen()
     print(f"Merci d'avoir joué ! Score final : {board.score}")

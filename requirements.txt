@@ -1,3 +1,4 @@
 numpy>=1.24
 colorama>=0.4.6
 gymnasium>=0.29
+pygame>=2.5  # rendu graphique (replay visuel) — scripts/replay_gui.py
