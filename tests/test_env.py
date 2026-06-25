@@ -121,3 +121,39 @@ def test_action_masks_matches_valid_moves() -> None:
     assert mask.dtype == bool
     valid = env.board.get_valid_moves()
     assert [bool(mask[a]) for a in range(4)] == [a in valid for a in range(4)]
+
+
+def test_onehot_observation_shape_and_space() -> None:
+    """En mode one-hot, l'observation est un tenseur (C, 4, 4) dans [0, 1]."""
+    env = Game2048Env(obs_mode="onehot")
+    obs, _ = env.reset(seed=0)
+
+    assert env.observation_space.shape == obs.shape
+    assert obs.ndim == 3 and obs.shape[1:] == (4, 4)
+    assert obs.dtype == np.float32
+    # One-hot : chaque case appartient à exactement un canal -> somme = 16 cases.
+    assert obs.sum() == 16
+    assert obs.min() >= 0.0 and obs.max() <= 1.0
+
+
+def test_onehot_passes_env_checker() -> None:
+    """Le mode one-hot respecte aussi l'API gymnasium."""
+    check_env(Game2048Env(obs_mode="onehot"), skip_render_check=True)
+
+
+def test_shaped_reward_is_finite() -> None:
+    """En mode 'shaped', step renvoie une récompense flottante finie."""
+    env = Game2048Env(reward_mode="shaped")
+    env.reset(seed=0)
+    action = env.board.get_valid_moves()[0]
+    _obs, reward, _term, _trunc, _info = env.step(action)
+    assert isinstance(reward, float)
+    assert np.isfinite(reward)
+
+
+def test_invalid_obs_mode_raises() -> None:
+    """Un obs_mode inconnu lève une ValueError."""
+    import pytest
+
+    with pytest.raises(ValueError):
+        Game2048Env(obs_mode="bidon")

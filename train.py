@@ -189,17 +189,37 @@ def main() -> None:
     parser.add_argument(
         "--n-envs", type=int, default=8, help="environnements parallèles (MaskablePPO)"
     )
+    parser.add_argument(
+        "--obs-mode",
+        choices=["flat", "onehot"],
+        default="flat",
+        help="encodage de l'observation (onehot active le CNN)",
+    )
+    parser.add_argument(
+        "--reward",
+        choices=["basic", "shaped"],
+        default="basic",
+        help="fonction de reward (shaped = shaping potentiel)",
+    )
     args = parser.parse_args()
 
     # Par défaut : MaskablePPO (masquage + vec-envs + meilleur modèle gardé).
     # --no-mask rebascule sur le PPO simple, utile comme point de comparaison.
     if args.no_mask:
-        agent: PPOAgent | MaskablePPOAgent = PPOAgent(Game2048Env(), model_dir=args.model_dir)
+        agent: PPOAgent | MaskablePPOAgent = PPOAgent(
+            Game2048Env(obs_mode=args.obs_mode, reward_mode=args.reward),
+            model_dir=args.model_dir,
+        )
         algo = "PPO"
     else:
-        agent = MaskablePPOAgent(Game2048Env(), model_dir=args.model_dir, n_envs=args.n_envs)
+        agent = MaskablePPOAgent(
+            model_dir=args.model_dir,
+            n_envs=args.n_envs,
+            obs_mode=args.obs_mode,
+            reward_mode=args.reward,
+        )
         algo = MaskablePPOAgent.algo_name
-    print(f"Algorithme : {algo}")
+    print(f"Algorithme : {algo}  |  obs={args.obs_mode}  |  reward={args.reward}")
 
     start_number = 1
     if args.resume:

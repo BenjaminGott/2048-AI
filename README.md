@@ -65,6 +65,11 @@ python train.py --no-mask
 
 # régler le nombre d'environnements parallèles
 python train.py --n-envs 8
+
+# entraînement OPTIMISÉ (étape 4) : encodage one-hot + CNN + reward shaping
+# (recommandé pour dépasser le plateau ; modèles non compatibles avec le flat,
+#  donc on les range dans un dossier distinct)
+python train.py --obs-mode onehot --reward shaped --model-dir models_cnn
 ```
 
 | Argument | Défaut | Rôle |
@@ -76,8 +81,12 @@ python train.py --n-envs 8
 | `--no-mask` | — | utilise PPO simple au lieu de MaskablePPO |
 | `--n-envs` | 8 | environnements parallèles (MaskablePPO) |
 | `--model-dir` | `models` | dossier de sauvegarde des modèles |
+| `--obs-mode` | `flat` | encodage de l'observation : `flat` (vecteur 16) ou `onehot` (tenseur 16×4×4 → CNN) |
+| `--reward` | `basic` | fonction de reward : `basic` ou `shaped` (shaping potentiel : monotonie, coin, cases vides) |
 
-Chaque version est sauvegardée dans `models/vN/` (`model.zip`, `best_model.zip`, `meta.json`, `eval.json`) et agrégée dans `models/progress.json`.
+Chaque version est sauvegardée dans `models/vN/` (`model.zip`, `best_model.zip`, `meta.json`, `eval.json`) et agrégée dans `models/progress.json`. Les modes (`obs_mode`/`reward_mode`) sont mémorisés dans `meta.json` : `evaluate.py` et `play_gui.py` reconstruisent automatiquement le bon environnement, sans flag supplémentaire.
+
+> **Compatibilité** : un modèle `onehot` ne peut pas être rechargé dans un env `flat` (forme d'observation différente). Entraîne les séries `onehot`/`shaped` dans un `--model-dir` distinct (ex. `models_cnn`) pour ne pas les mélanger avec une série `flat`.
 
 ---
 

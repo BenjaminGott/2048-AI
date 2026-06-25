@@ -21,6 +21,7 @@ from __future__ import annotations
 import json
 import os
 from datetime import datetime
+from functools import partial
 from typing import Any
 
 import numpy as np
@@ -30,6 +31,7 @@ from sb3_contrib.common.wrappers import ActionMasker
 from stable_baselines3.common.callbacks import BaseCallback, CallbackList
 from stable_baselines3.common.vec_env import DummyVecEnv
 
+from agents.features import Grid2048CNN
 from agents.ppo_agent import (
     EVAL_MAX_STEPS,
     PPO_HYPERPARAMS,
@@ -42,9 +44,22 @@ def _mask_fn(env: Game2048Env) -> np.ndarray:
     return env.action_masks()
 
 
-def make_masked_env() -> ActionMasker:
-    """Crée un `Game2048Env` enveloppé pour exposer le masque d'actions."""
-    return ActionMasker(Game2048Env(), _mask_fn)
+def make_masked_env(obs_mode: str = "flat", reward_mode: str = "basic") -> ActionMasker:
+    """Crée un `Game2048Env` (avec les modes voulus) exposant le masque d'actions."""
+    return ActionMasker(Game2048Env(obs_mode=obs_mode, reward_mode=reward_mode), _mask_fn)
+
+
+def _json_safe(value: Any) -> Any:
+    """Rend un dict d'hyperparamètres sérialisable en JSON.
+
+    Les valeurs non sérialisables (ex: la classe d'extracteur de features dans
+    `policy_kwargs`) sont remplacées par leur nom lisible.
+    """
+    if isinstance(value, dict):
+        return {k: _json_safe(v) for k, v in value.items()}
+    if isinstance(value, (str, int, float, bool)) or value is None:
+        return value
+    return getattr(value, "__name__", str(value))
 
 
 class MaskablePPOAgent:
@@ -58,29 +73,46 @@ class MaskablePPOAgent:
         model_dir: str = "models/",
         n_envs: int = 8,
         hyperparams: dict[str, Any] | None = None,
+        obs_mode: str = "flat",
+        reward_mode: str = "basic",
     ) -> None:
         """Crée l'agent et instancie le modèle MaskablePPO.
 
         Args:
-            env (Game2048Env | None): environnement utilisé pour l'évaluation et
-                la prédiction. Si None, un environnement masqué est créé.
+            env (Game2048Env | None): environnement d'évaluation/prédiction. Si
+                None, un environnement masqué est créé avec les modes choisis.
             model_dir (str): dossier racine de sauvegarde des modèles.
             n_envs (int): nombre d'environnements parallèles pour l'entraînement.
             hyperparams (dict | None): surcharges des hyperparamètres par défaut.
+            obs_mode (str): "flat" ou "onehot" (voir Game2048Env).
+            reward_mode (str): "basic" ou "shaped" (voir Game2048Env).
         """
         self.model_dir = model_dir
         self.n_envs = max(1, n_envs)
+        self.obs_mode = obs_mode
+        self.reward_mode = reward_mode
         os.makedirs(model_dir, exist_ok=True)
+
+        # Fabrique d'environnements partageant les mêmes modes (réutilisée pour
+        # l'env d'éval du callback, sinon ses observations ne colleraient pas).
+        self._env_factory = partial(make_masked_env, obs_mode=obs_mode, reward_mode=reward_mode)
 
         # Environnement d'évaluation/prédiction (masqué, un seul).
         self.env: ActionMasker = (
-            ActionMasker(env, _mask_fn) if env is not None else make_masked_env()
+            ActionMasker(env, _mask_fn) if env is not None else self._env_factory()
         )
 
         # Environnements d'entraînement vectorisés (collecte parallèle).
-        self.train_env = DummyVecEnv([make_masked_env for _ in range(self.n_envs)])
+        self.train_env = DummyVecEnv([self._env_factory for _ in range(self.n_envs)])
 
         self.hyperparams: dict[str, Any] = {**PPO_HYPERPARAMS, **(hyperparams or {})}
+        # En mode one-hot, on branche le CNN dédié à la grille 4×4.
+        if obs_mode == "onehot":
+            policy_kwargs = dict(self.hyperparams.get("policy_kwargs", {}))
+            policy_kwargs.setdefault("features_extractor_class", Grid2048CNN)
+            policy_kwargs.setdefault("features_extractor_kwargs", {"features_dim": 256})
+            self.hyperparams["policy_kwargs"] = policy_kwargs
+
         self.model = MaskablePPO(env=self.train_env, **self.hyperparams)
 
     # --- Entraînement / sauvegarde ----------------------------------------
@@ -100,8 +132,9 @@ class MaskablePPOAgent:
         os.makedirs(version_dir, exist_ok=True)
 
         # Callback qui évalue périodiquement et garde le meilleur modèle.
+        # L'env d'éval doit utiliser les mêmes modes (obs/reward) que l'agent.
         eval_cb = MaskableEvalCallback(
-            make_masked_env(),
+            self._env_factory(),
             best_model_save_path=version_dir,
             n_eval_episodes=10,
             eval_freq=max(1, total_timesteps // 5 // self.n_envs),
@@ -126,10 +159,12 @@ class MaskablePPOAgent:
             "version": version,
             "algo": self.algo_name,
             "n_envs": self.n_envs,
+            "obs_mode": self.obs_mode,
+            "reward_mode": self.reward_mode,
             "total_timesteps": int(total_timesteps),
             "timesteps_cumulative": int(self.model.num_timesteps),
             "timestamp": datetime.now().isoformat(timespec="seconds"),
-            "hyperparams": self.hyperparams,
+            "hyperparams": _json_safe(self.hyperparams),
         }
         with open(os.path.join(version_dir, "meta.json"), "w", encoding="utf-8") as f:
             json.dump(meta, f, indent=2)

@@ -37,7 +37,9 @@ recordings/
 
 # --- Reinforcement Learning (artefacts d'entraînement) ---
 # Modèles entraînés, logs et checkpoints : volumineux, on ne versionne pas.
+# Couvre models/, models_v1/, models_cnn/, etc. (séries flat / one-hot).
 models/
+models_*/
 *.zip
 *.pt
 *.pth

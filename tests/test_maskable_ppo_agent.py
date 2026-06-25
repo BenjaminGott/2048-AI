@@ -54,6 +54,32 @@ def test_predict_returns_valid_action(tmp_path) -> None:
     assert action in (0, 1, 2, 3)
 
 
+def test_optimized_mode_onehot_shaped(tmp_path) -> None:
+    """Mode optimisé (one-hot + CNN + shaped) : entraînement + meta sérialisables."""
+    model_dir = str(tmp_path / "models")
+    agent = MaskablePPOAgent(
+        model_dir=model_dir,
+        n_envs=2,
+        hyperparams=FAST_HYPERPARAMS,
+        obs_mode="onehot",
+        reward_mode="shaped",
+    )
+    agent.train(FAST_STEPS, "v1")
+
+    import json
+
+    with open(os.path.join(model_dir, "v1", "meta.json"), encoding="utf-8") as f:
+        meta = json.load(f)
+    assert meta["obs_mode"] == "onehot"
+    assert meta["reward_mode"] == "shaped"
+    # policy_kwargs contient la classe CNN -> doit être sérialisée par son nom.
+    assert meta["hyperparams"]["policy_kwargs"]["features_extractor_class"] == "Grid2048CNN"
+
+    # predict fonctionne aussi en mode one-hot.
+    obs, _info = agent.env.reset()
+    assert agent.predict(obs) in (0, 1, 2, 3)
+
+
 def test_evaluate_keys(tmp_path) -> None:
     """evaluate() renvoie toutes les clés attendues, valeurs valides."""
     agent = _make_agent(str(tmp_path / "models"))

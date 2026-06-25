@@ -19,17 +19,26 @@ if TYPE_CHECKING:  # uniquement pour le typage (évite d'importer sb3-contrib si
     from agents.maskable_ppo_agent import MaskablePPOAgent
 
 
-def read_algo(version: str, model_dir: str) -> str:
-    """Lit l'algorithme d'une version depuis son `meta.json` (défaut "PPO")."""
+def read_meta(version: str, model_dir: str) -> dict:
+    """Lit le `meta.json` d'une version (dict vide s'il n'existe pas)."""
     meta_path = os.path.join(model_dir, version, "meta.json")
     if os.path.isfile(meta_path):
         with open(meta_path, encoding="utf-8") as f:
-            return json.load(f).get("algo", "PPO")
-    return "PPO"
+            return json.load(f)
+    return {}
+
+
+def read_algo(version: str, model_dir: str) -> str:
+    """Lit l'algorithme d'une version depuis son `meta.json` (défaut "PPO")."""
+    return read_meta(version, model_dir).get("algo", "PPO")
 
 
 def make_agent_for(version: str, model_dir: str, n_envs: int = 1) -> PPOAgent | MaskablePPOAgent:
     """Instancie le bon type d'agent (non chargé) pour une version donnée.
+
+    Les modes d'observation/reward sont relus depuis `meta.json` pour que
+    l'environnement corresponde exactement au modèle entraîné (sinon la forme
+    de l'observation ne collerait pas).
 
     Args:
         version (str): version concernée (ex: "v3").
@@ -39,9 +48,15 @@ def make_agent_for(version: str, model_dir: str, n_envs: int = 1) -> PPOAgent | 
     Returns:
         Un agent prêt à recevoir `.load(version)`.
     """
-    if read_algo(version, model_dir) == "MaskablePPO":
+    meta = read_meta(version, model_dir)
+    obs_mode = meta.get("obs_mode", "flat")
+    reward_mode = meta.get("reward_mode", "basic")
+
+    if meta.get("algo", "PPO") == "MaskablePPO":
         # Import local : sb3-contrib n'est nécessaire que pour les modèles masqués.
         from agents.maskable_ppo_agent import MaskablePPOAgent
 
-        return MaskablePPOAgent(Game2048Env(), model_dir=model_dir, n_envs=n_envs)
-    return PPOAgent(Game2048Env(), model_dir=model_dir)
+        return MaskablePPOAgent(
+            model_dir=model_dir, n_envs=n_envs, obs_mode=obs_mode, reward_mode=reward_mode
+        )
+    return PPOAgent(Game2048Env(obs_mode=obs_mode, reward_mode=reward_mode), model_dir=model_dir)
